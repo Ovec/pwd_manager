@@ -25,8 +25,6 @@ var newValue = ""
 var newKey = ""
 var state = ""
 
-const storageKey = "storageKey"
-
 func Generate(length int) (string, error) {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-=_+"
 
