@@ -2,50 +2,34 @@ package main
 
 import (
 	"bufio"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"math/big"
 	"os"
 	"strings"
+
+	"github.com/Ovec/pwd_manager/crypt"
+	"github.com/Ovec/pwd_manager/password"
+	"github.com/Ovec/pwd_manager/random"
+	"github.com/Ovec/pwd_manager/terminal"
 )
 
-// todo
-// create data structure for pwd storing - DONE
-// create ui for adding and removing data
-// use storage for adding and removing data
-// implement crypt and decrypt
-// implement pwd
-// datastructure
-// password and id
-
 var filePath = "storage"
-var newValue = ""
 var newKey = ""
 var state = ""
-
-func Generate(length int) (string, error) {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-=_+"
-
-	randomBytes := make([]byte, length)
-	for i := range randomBytes {
-		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
-		if err != nil {
-			return "", err
-		}
-		randomBytes[i] = charset[n.Int64()]
-	}
-
-	return string(randomBytes), nil
-}
+var key = ""
+var salt = "some nice salt should be here"
 
 func main() {
+	reader := bufio.NewReader(os.Stdin)
 	passwordPairs := map[string]string{}
 
-	// Check if the file exists
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// Create the file
+		fmt.Println("Storage not found, creating new")
+		fmt.Println("Enter your master password")
+
+		password := terminal.GetPassword(reader)
+		key = string(crypt.GenerateAESKeyFromPassword([]byte(password), []byte(salt), 10000))
+
 		file, err := os.Create(filePath)
 		if err != nil {
 			fmt.Println("Error:", err)
@@ -53,24 +37,33 @@ func main() {
 		}
 		defer file.Close()
 
-		fmt.Println("Storage not found, creating new", filePath)
 	} else {
-		fileContent, err := ioutil.ReadFile(filePath)
+		fmt.Println("Enter your master password")
+
+		password := terminal.GetPassword(reader)
+		key = string(crypt.GenerateAESKeyFromPassword([]byte(password), []byte(salt), 10000))
+
+		fileContent, err := os.ReadFile(filePath)
 		if err != nil {
 			fmt.Println("Error reading file:", err)
 			return
 		}
 
-		err = json.Unmarshal(fileContent, &passwordPairs)
+		plaintext, err := crypt.DecryptAES(fileContent, []byte(key))
 		if err != nil {
-			fmt.Println("Error unmarshaling JSON:", err)
+			fmt.Println("Error decrypting plaintext:", err)
 			return
+		}
+
+		err = json.Unmarshal(plaintext, &passwordPairs)
+		if err != nil {
+			fmt.Println("Wrong password")
+			os.Exit(0)
 		}
 
 	}
 
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Println("Simple Shell, press (L) for list and (A) for Add")
+	fmt.Println("Press (L) for list, (A) for Add, (Q) for Quit")
 	fmt.Println("---------------------")
 
 	for {
@@ -78,27 +71,24 @@ func main() {
 		text, _ := reader.ReadString('\n')
 		text = strings.Replace(text, "\n", "", -1)
 
-		if strings.Compare("q", text) == 0 {
+		if strings.Compare("Q", text) == 0 {
 			fmt.Println("Bye, have a nice day")
 			os.Exit(0)
 		}
 
 		if strings.Compare("A", text) == 0 {
-			println(state)
 			fmt.Println("Enter new key")
 			state = "A"
 		}
 
 		if strings.Compare("A", state) == 0 && strings.Compare("A", text) != 0 {
-			println(state)
-			fmt.Println("Enter password")
 			newKey = text
 			state = "B"
 		}
 
 		if strings.Compare("B", state) == 0 && strings.Compare("B", text) != 0 {
 			println(state)
-			newValue, err := Generate(8)
+			newValue, err := password.Generate(random.RandomNumber(8, 16))
 			if err != nil {
 				fmt.Println("Error:", err)
 				return
@@ -106,7 +96,6 @@ func main() {
 
 			_, ok := passwordPairs[newKey]
 
-			// Check the result
 			if ok {
 				fmt.Println("Already in, sorry bro")
 				fmt.Printf("Id: %s - %s\n", newKey, passwordPairs[newKey])
@@ -122,7 +111,15 @@ func main() {
 					return
 				}
 
-				err = ioutil.WriteFile(filePath, jsonData, 0644)
+				cipherText, err := crypt.EncryptAES([]byte(jsonData), []byte(key))
+				if err != nil {
+					fmt.Println("Error encrypting plaintext:", err)
+					return
+				}
+
+				fmt.Println(string(cipherText))
+
+				err = os.WriteFile(filePath, cipherText, 0644)
 				if err != nil {
 					fmt.Println("Error:", err)
 					return
