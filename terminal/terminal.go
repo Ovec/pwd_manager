@@ -53,7 +53,6 @@ func Handle(r *bufio.Reader, passwordPairs map[string]string, filePath string, k
 		}
 
 		if strings.Compare("B", state) == 0 && strings.Compare("B", text) != 0 {
-			println(state)
 			newValue, err := password.Generate(random.RandomNumber(8, 16))
 			if err != nil {
 				fmt.Println("Error:", err)
@@ -66,8 +65,7 @@ func Handle(r *bufio.Reader, passwordPairs map[string]string, filePath string, k
 				fmt.Println("Key exists already")
 				fmt.Printf("Id: %s - %s\n", newKey, passwordPairs[newKey])
 			} else {
-				fmt.Println(newKey)
-				fmt.Println(newValue)
+				fmt.Printf("Id: %s - %s\n", newKey, newValue)
 
 				passwordPairs[newKey] = newValue
 
@@ -82,8 +80,6 @@ func Handle(r *bufio.Reader, passwordPairs map[string]string, filePath string, k
 					fmt.Println("Error encrypting plaintext:", err)
 					return
 				}
-
-				fmt.Println(string(cipherText))
 
 				err = os.WriteFile(filePath, cipherText, 0644)
 				if err != nil {
