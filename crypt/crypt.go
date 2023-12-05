@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 
@@ -72,4 +73,16 @@ func PKCS7UnPadding(plaintext []byte) []byte {
 
 func GenerateAESKeyFromPassword(password, salt []byte, iterations int) []byte {
 	return pbkdf2.Key(password, salt, iterations, 32, sha256.New)
+}
+
+func GenerateSalt(length int) (string, error) {
+	salt := make([]byte, length)
+	_, err := rand.Read(salt)
+	if err != nil {
+		return "", err
+	}
+
+	saltBase64 := base64.StdEncoding.EncodeToString(salt)
+
+	return saltBase64, nil
 }

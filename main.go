@@ -5,60 +5,90 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime"
 
 	"github.com/Ovec/pwd_manager/crypt"
+	"github.com/Ovec/pwd_manager/filesystem"
+	"github.com/Ovec/pwd_manager/str"
 	"github.com/Ovec/pwd_manager/terminal"
 )
 
-var filePath = "storage"
-var key = ""
-var salt = "some nice salt should be here"
+var validOss = []string{"linux", "windows", "darwin"}
+
+const storeageDir = "/applications/pwd_manager"
+const storageFile = "storage"
+const saltFile = "salt"
 
 func main() {
+	if !str.ContainsString(validOss, runtime.GOOS) {
+		fmt.Println("Operationg system", runtime.GOOS, "is not supported")
+		return
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 	passwordPairs := map[string]string{}
 
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		fmt.Println("Storage not found, creating new")
-		fmt.Println("Enter your master password")
+	dataDir, err := filesystem.DataDir(storeageDir)
 
-		password := terminal.GetPassword(reader)
-		key = string(crypt.GenerateAESKeyFromPassword([]byte(password), []byte(salt), 10000))
-
-		file, err := os.Create(filePath)
-		if err != nil {
-			fmt.Println("Error:", err)
-			return
-		}
-		defer file.Close()
-
-	} else {
-		fmt.Println("Enter your master password")
-
-		password := terminal.GetPassword(reader)
-		key = string(crypt.GenerateAESKeyFromPassword([]byte(password), []byte(salt), 10000))
-
-		fileContent, err := os.ReadFile(filePath)
-		if err != nil {
-			fmt.Println("Error reading file:", err)
-			return
-		}
-
-		if len(fileContent) > 0 {
-			plaintext, err := crypt.DecryptAES(fileContent, []byte(key))
-			if err != nil {
-				fmt.Println("Error decrypting plaintext:", err)
-				return
-			}
-
-			err = json.Unmarshal(plaintext, &passwordPairs)
-			if err != nil {
-				fmt.Println("Wrong password")
-				os.Exit(0)
-			}
-		}
-
+	if err != nil {
+		fmt.Println("Error finding home:", err)
+		return
 	}
 
-	terminal.Handle(reader, passwordPairs, filePath, key)
+	err = filesystem.CreateFiles(dataDir, []string{storageFile, saltFile})
+
+	if err != nil {
+		fmt.Println("Error creating storage:", err)
+		return
+	}
+
+	salt, err := os.ReadFile(dataDir + "/" + saltFile)
+
+	if err != nil {
+		fmt.Println("Error reading salt file:", err)
+		return
+	}
+
+	if len(salt) == 0 {
+		salt, err := crypt.GenerateSalt(64)
+
+		if err != nil {
+			fmt.Println("Error creating salt:", err)
+			return
+		}
+
+		err = os.WriteFile(dataDir+"/"+saltFile, []byte(salt), 0644)
+
+		if err != nil {
+			fmt.Println("Error string salt:", err)
+			return
+		}
+	}
+
+	fmt.Println("Enter your master password")
+
+	password := terminal.GetPassword(reader)
+	key := string(crypt.GenerateAESKeyFromPassword([]byte(password), []byte(salt), 10000))
+
+	storage, err := os.ReadFile(dataDir + "/" + storageFile)
+	if err != nil {
+		fmt.Println("Error reading storage:", err)
+		return
+	}
+
+	if len(storage) > 0 {
+		plaintext, err := crypt.DecryptAES(storage, []byte(key))
+		if err != nil {
+			fmt.Println("Error decrypting plaintext:", err)
+			return
+		}
+
+		err = json.Unmarshal(plaintext, &passwordPairs)
+		if err != nil {
+			fmt.Println("Wrong password")
+			os.Exit(0)
+		}
+	}
+
+	terminal.Handle(reader, passwordPairs, dataDir+"/"+storageFile, key)
 }
