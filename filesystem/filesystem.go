@@ -1,7 +1,6 @@
 package filesystem
 
 import (
-	"fmt"
 	"os"
 )
 
@@ -10,7 +9,6 @@ func homeDir() (string, error) {
 }
 
 func FileExists(f string) bool {
-	fmt.Println(f)
 	if _, err := os.Stat(f); os.IsNotExist(err) {
 		return true
 	} else {
