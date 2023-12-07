@@ -50,7 +50,8 @@ func main() {
 	}
 
 	if len(salt) == 0 {
-		salt, err := crypt.GenerateSalt(64)
+		newSalt, err := crypt.GenerateSalt(64)
+		salt = []byte(newSalt)
 
 		if err != nil {
 			fmt.Println("Error creating salt:", err)
@@ -68,7 +69,7 @@ func main() {
 	fmt.Println("Enter your master password")
 
 	password := terminal.GetPassword(reader)
-	key := string(crypt.GenerateAESKeyFromPassword([]byte(password), []byte(salt), 10000))
+	key := string(crypt.GenerateAESKeyFromPassword([]byte(password), salt, 10000))
 
 	storage, err := os.ReadFile(dataDir + "/" + storageFile)
 	if err != nil {
