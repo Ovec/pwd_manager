@@ -13,7 +13,7 @@ Works only on Linux/Unix-like operating systems.
 
 ## License
 
-[UNLICENSE](https://choosealicense.com/licenses/unlicense/)
+[Creative Commons Zero v1.0 Universal](https://github.com/Ovec/pwd_manager/blob/main/LICENSE)
 
 
 ## Acknowledgements
