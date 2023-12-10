@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 
@@ -49,7 +50,10 @@ func DecryptAES(ciphertext []byte, key []byte) ([]byte, error) {
 	mode := cipher.NewCBCDecrypter(block, iv)
 	mode.CryptBlocks(ciphertext, ciphertext)
 
-	ciphertext = PKCS7UnPadding(ciphertext)
+	ciphertext, err = PKCS7UnPadding(ciphertext)
+	if err != nil {
+		return nil, err
+	}
 
 	return ciphertext, nil
 }
@@ -60,9 +64,13 @@ func PKCS7Padding(plaintext []byte, blockSize int) []byte {
 	return append(plaintext, padText...)
 }
 
-func PKCS7UnPadding(plaintext []byte) []byte {
+func PKCS7UnPadding(plaintext []byte) ([]byte, error) {
 	padding := int(plaintext[len(plaintext)-1])
-	return plaintext[:len(plaintext)-padding]
+	if padding > 15 {
+		return nil, errors.New("padding too long")
+	}
+
+	return plaintext[:len(plaintext)-padding], nil
 }
 
 func GenerateAESKeyFromPassword(password, salt []byte, iterations int) []byte {

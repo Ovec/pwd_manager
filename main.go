@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/Ovec/pwd_manager/crypt"
 	"github.com/Ovec/pwd_manager/filesystem"
@@ -79,7 +80,13 @@ func main() {
 
 	if len(storage) > 0 {
 		plaintext, err := crypt.DecryptAES(storage, []byte(key))
+
 		if err != nil {
+			if strings.Compare("padding too long", err.Error()) == 0 {
+				fmt.Println("Wrong password")
+				os.Exit(0)
+			}
+
 			fmt.Println("Error decrypting plaintext:", err)
 			return
 		}
